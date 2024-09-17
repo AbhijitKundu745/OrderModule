@@ -14,6 +14,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -37,6 +38,7 @@ import com.psl.ordermodule20.Helper.SharedPreferencesManager;
 import com.psl.ordermodule20.adapter.WorkOrderDetailsAdapter;
 import com.psl.ordermodule20.databinding.ActivityLoadingUnloadingBinding;
 import com.psl.ordermodule20.viewHolder.OrderDetails;
+import com.psl.ordermodule20.viewHolder.TagWithDestination;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -44,8 +46,10 @@ import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
@@ -390,6 +394,8 @@ public class LoadingUnloadingActivity extends AppCompatActivity {
                     if (detailObj.getString(APIConstants.K_PALLET_NUMBER).contentEquals(binding.textPalletNo.getText())) {
                         String palletName = detailObj.getString(APIConstants.K_PALLET_NUMBER);
                         String workOrderType = detailObj.getString(APIConstants.K_WORK_ORDER_TYPE);
+                        String palletTag = detailObj.getString(APIConstants.K_PALLET_TAG_ID);
+                        String WorkOrderNo = detailObj.getString(APIConstants.K_WORK_ORDER_NUMBER);
                         String destination = "";
 
                         if (workOrderType.equals("U0") && detailObj.has(APIConstants.K_LOADING_AREA)) {
@@ -415,10 +421,18 @@ public class LoadingUnloadingActivity extends AppCompatActivity {
                             binding.textDestination.setSelected(true);
                         }
                         String currentBinDestination = "";
+                        String currentDestinationTag = "";
                         if(detailObj.has(APIConstants.K_CURRENT_BIN_NAME)){
-                            currentBinDestination = detailObj.getString(APIConstants.K_CURRENT_BIN_NAME);
+                            if(detailObj.getString(APIConstants.K_CURRENT_BIN_NAME).equalsIgnoreCase("null")){
+                                currentBinDestination = "__";
+                            }
+                            else{
+                                currentBinDestination = detailObj.getString(APIConstants.K_CURRENT_BIN_NAME);
+                            }
+                            currentDestinationTag = detailObj.getString(APIConstants.K_CURRENT_BIN_TAGID);
+
                         }
-                        showPopup(palletName, workOrderType, destination, currentBinDestination);
+                        showPopup(palletName, workOrderType, destination, currentBinDestination, palletTag, currentDestinationTag, WorkOrderNo);
                     } else{
                         if (bottomSheetDialog != null && bottomSheetDialog.isShowing()) {
                             //bottomSheetDialog.hide();
@@ -484,7 +498,7 @@ public class LoadingUnloadingActivity extends AppCompatActivity {
     }
 
     private Dialog confirmationDIalog;
-    public void showCustomConfirmationDialog(String msg,String action) {
+    public void showCustomConfirmationDialogSpecial(String msg, String action, String palletTag, String workOrderType, String destinationTag, String WorkOrderNo) {
         if (confirmationDIalog != null) {
             confirmationDIalog.dismiss();
         }
@@ -500,6 +514,9 @@ public class LoadingUnloadingActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 confirmationDIalog.dismiss();
+                if(action.equalsIgnoreCase("SAVE")){
+                    uploadWorkOrderItemToServer(palletTag, workOrderType, destinationTag, WorkOrderNo);
+                }
                 if(action.equalsIgnoreCase("Pause")){
                     //updateWorkOrderStatus(action);
                 }
@@ -564,7 +581,7 @@ public class LoadingUnloadingActivity extends AppCompatActivity {
         finish();
         super.onBackPressed();
     }
-    private void showPopup(String palletNumber, String workOrderType, String suggestedDestination, String currentDestination) {
+    private void showPopup(String palletNumber, String workOrderType, String suggestedDestination, String currentDestination, String palletTag, String destinationTag, String WorkorderNo) {
         // Create a custom layout for your popup
         LayoutInflater inflater = LayoutInflater.from(LoadingUnloadingActivity.this);
         View popupView = inflater.inflate(R.layout.custom_popup_layout, null);
@@ -574,6 +591,7 @@ public class LoadingUnloadingActivity extends AppCompatActivity {
         TextView textSuggestDestination = popupView.findViewById(R.id.textSuggestDestination);
         TextView textActualDestinationHeader = popupView.findViewById(R.id.textActualDestinationHeader);
         TextView textActualDestination = popupView.findViewById(R.id.textActualDestination);
+        Button btnPost = popupView.findViewById(R.id.btnPost);
 
         // Set the values based on the workOrderType
         switch (workOrderType) {
@@ -588,14 +606,55 @@ public class LoadingUnloadingActivity extends AppCompatActivity {
                 textSuggestDestination.setText(suggestedDestination);
                 break;
             case "U1":
+                textPalletName.setVisibility(View.VISIBLE);
+                textSuggestDestination.setVisibility(View.VISIBLE);
+                textActualDestination.setVisibility(View.VISIBLE);
+                textActualDestinationHeader.setVisibility(View.VISIBLE);
+                btnPost.setVisibility(View.VISIBLE);
+                textPalletName.setText(palletNumber);
+                textSuggestDestination.setText(suggestedDestination);
+                textActualDestination.setText(currentDestination);
+                if(!currentDestination.equalsIgnoreCase("__")){
+                    if(!suggestedDestination.equalsIgnoreCase(currentDestination)){
+                    btnPost.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            showCustomConfirmationDialogSpecial( "Do you want to put "+palletNumber+" in "+currentDestination+" ?", "SAVE", palletTag, workOrderType, destinationTag, WorkorderNo);
+                        }
+                    });
+                    }
+                    else{
+                        btnPost.setVisibility(View.INVISIBLE);
+                    }
+                } else{
+                    btnPost.setVisibility(View.INVISIBLE);
+                }
+                break;
             case "I0":
                 textPalletName.setVisibility(View.VISIBLE);
                 textSuggestDestination.setVisibility(View.VISIBLE);
                 textActualDestination.setVisibility(View.VISIBLE);
                 textActualDestinationHeader.setVisibility(View.VISIBLE);
+
                 textPalletName.setText(palletNumber);
                 textSuggestDestination.setText(suggestedDestination);
                 textActualDestination.setText(currentDestination);
+                if(!currentDestination.equalsIgnoreCase("__")) {
+                    if(!suggestedDestination.equalsIgnoreCase(currentDestination)){
+                        btnPost.setVisibility(View.VISIBLE);
+                        btnPost.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                showCustomConfirmationDialogSpecial("Do you want to put " + palletNumber + " in " + currentDestination + " ?", "SAVE", palletTag, workOrderType, destinationTag, WorkorderNo);
+                            }
+                        });
+                    }
+                    else{
+                        btnPost.setVisibility(View.INVISIBLE);
+                    }
+                } else{
+                    btnPost.setVisibility(View.INVISIBLE);
+                }
                 break;
         }
 
@@ -610,6 +669,101 @@ public class LoadingUnloadingActivity extends AppCompatActivity {
         }
         bottomSheetDialog.show();
 
+    }
+    private void uploadWorkOrderItemToServer(String palletTag, String WorkOrderType, String destinationTag, String workOrderNo) {
+        try {
+            TagWithDestination allTags = new TagWithDestination(workOrderNo, palletTag, destinationTag, WorkOrderType);
+            allTags.setWorkOrderNo(workOrderNo);
+            allTags.setDestinationTag(destinationTag);
+            allTags.setWorkOrderType(WorkOrderType);
+            allTags.setPalletTag(palletTag);
+            Log.e("DEST_ID",destinationTag);
+                String palletTagId = palletTag;
+                String workOrderNumber = workOrderNo;
+                String workOrderType = WorkOrderType;
+                String listItemStatus = "Completed";
+                String palletTagRssi = "" + 65;
+                String palletTagCount = "1";
+                String TransID = UUID.randomUUID().toString();
+                String palletTagAntenaId = "" + 1;
+                String date_time = AssetUtils.getUTCSystemDateTimeInFormatt();
+                JSONObject jsonObject = new JSONObject();
+                jsonObject.put(APIConstants.K_DEVICE_ID, SharedPreferencesManager.getDeviceId(context));
+                jsonObject.put(APIConstants.K_TRANS_ID, TransID);
+                jsonObject.put(APIConstants.K_WORK_ORDER_NUMBER, workOrderNumber);
+                jsonObject.put(APIConstants.K_LIST_ITEM_STATUS, listItemStatus);
+                jsonObject.put(APIConstants.K_WORK_ORDER_TYPE, workOrderType);
+                jsonObject.put(APIConstants.K_RSSI, palletTagRssi);
+                jsonObject.put(APIConstants.TRANSACTION_DATE_TIME, date_time);
+                jsonObject.put(APIConstants.COUNT, palletTagCount);
+                jsonObject.put(APIConstants.K_PALLET_TAG_ID, palletTagId);
+                jsonObject.put(APIConstants.ANTENA_ID, palletTagAntenaId);
+                jsonObject.put(APIConstants.SUB_TAG_CATEGORY_ID, "PalletTag");
+                jsonObject.put(APIConstants.TOUCH_POINT_TYPE, "T");
+
+                JSONArray tagDetailsArray = new JSONArray();
+                List<TagWithDestination> tags = new ArrayList<>();
+                tags.add(allTags);
+                for (int i = 0; i < tags.size(); i++) {
+                    JSONObject obj = new JSONObject();
+                    TagWithDestination tagBean = tags.get(i);
+                    obj.put(APIConstants.SUB_TAG_ID, tagBean.getDestinationTag());
+                    obj.put(APIConstants.COUNT, "1");
+                    obj.put(APIConstants.K_RSSI, "" + 65);
+                    obj.put(APIConstants.SUB_TAG_CATEGORY_ID,  "BinTag");
+                    obj.put(APIConstants.SUB_TAG_TYPE, "" + 3);
+                    obj.put(APIConstants.TRANSACTION_DATE_TIME, date_time);
+                    tagDetailsArray.put(obj);
+                }
+                jsonObject.put(APIConstants.SUB_TAG_DETAILS, tagDetailsArray);
+                //jsonObject.put(APIConstants.K_ASSET_SERIAL_NUMBER,serialnumber);
+                Log.e("OFFLINEDATA", jsonObject.toString());
+                postInventoryData(jsonObject);
+        } catch (JSONException e) {
+            Log.e("Exception", e.getMessage());
+        }
+    }
+
+    public void postInventoryData(final JSONObject loginRequestObject) {
+        OkHttpClient okHttpClient = new OkHttpClient().newBuilder()
+                .connectTimeout(APIConstants.API_TIMEOUT, TimeUnit.SECONDS)
+                .readTimeout(APIConstants.API_TIMEOUT, TimeUnit.SECONDS)
+                .writeTimeout(APIConstants.API_TIMEOUT, TimeUnit.SECONDS)
+                .build();
+        String Url = SharedPreferencesManager.getHostUrl(context) + APIConstants.M_POST_INVENTORY;
+
+        AndroidNetworking.post(SharedPreferencesManager.getHostUrl(context) + APIConstants.M_POST_INVENTORY).addJSONObjectBody(loginRequestObject)
+                .setTag("test")
+                //.addHeaders("Authorization",SharedPreferencesManager.getAccessToken(context))
+                .setPriority(Priority.LOW)
+                .setOkHttpClient(okHttpClient) // passing a custom okHttpClient
+                .build()
+                .getAsJSONObject(new JSONObjectRequestListener() {
+                    @Override
+                    public void onResponse(JSONObject result) {
+                        Log.e("result", result.toString());
+
+                        try {
+                            if (result.getString("status").equalsIgnoreCase("true")) {
+
+                                AssetUtils.showCommonBottomSheetSuccessDialog(context, "The pallet has been moved successfully");
+                            } else {
+                                AssetUtils.showCommonBottomSheetErrorDialog(context, result.getString("message").trim());
+                            }
+                        } catch (JSONException e) {
+                            // throw new RuntimeException(e);
+                            AssetUtils.showCommonBottomSheetErrorDialog(context, e.getMessage());
+                        }
+                    }
+
+                    @Override
+                    public void onError(ANError anError) {
+                        Log.e("error", anError.getErrorDetail());
+                        Log.e("errorcode", "" + anError.getErrorCode());
+                    }
+                });
+        Log.e("URL", "" + Url);
+        Log.e("URL", loginRequestObject.toString());
     }
 
 }

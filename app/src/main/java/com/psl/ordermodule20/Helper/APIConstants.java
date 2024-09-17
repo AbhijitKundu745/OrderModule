@@ -17,6 +17,7 @@ public class APIConstants {
     public static final String M_UPDATE_WORK_ORDER_STATUS = "/PDA/UpdateWorkorderStatus";
     public static final String M_GET_WORK_ORDER_DETAILS = "/PDA/GetWorkorderListItemsV1";
     public static final String M_START_REDAER = "/PDA/StartReader";
+    public static final String M_POST_INVENTORY = "/PDA/InsertTransactionDetails";
 
     public static final int API_TIMEOUT = 60;
     public static final String K_STATUS = "status";
@@ -51,9 +52,19 @@ public class APIConstants {
     public static final String K_USER = "UserName";
     public static final String K_PASSWORD = "Password";
     public static final String K_DEVICE_ID = "ClientDeviceID";
+    public static final String K_TRANS_ID = "TransID";
     public static final String K_USER_ID = "UserID";
     public static final String K_READER_STATUS = "ReaderStatus";
     public static final String K_APP_STATUS = "ApplicationStatus";
+    public static final String K_RSSI = "RSSI";
+    public static final String TRANSACTION_DATE_TIME = "TransDatetime";
+    public static final String COUNT = "Count";
+    public static final String ANTENA_ID = "AntennaID";
+    public static final String SUB_TAG_CATEGORY_ID = "CategoryID";
+    public static final String TOUCH_POINT_TYPE = "TouchPointType";
+    public static final String SUB_TAG_ID = "TagID";
+    public static final String SUB_TAG_TYPE = "TagType";
+    public static final String SUB_TAG_DETAILS = "SubTagDetails";
 
 
     public static final String K_COMPANY_CODE = "CompanyCode";

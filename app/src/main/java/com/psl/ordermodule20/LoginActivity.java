@@ -144,6 +144,7 @@ public class LoginActivity extends AppCompatActivity{
                             hideProgressDialog();
                             if (result != null) {
                                 try {
+                                    hideProgressDialog();
                                     Log.e("LOGINRESULT", result.toString());
                                     String status = result.getString(APIConstants.K_STATUS).trim();
                                     String message = result.getString(APIConstants.K_MESSAGE).trim();
